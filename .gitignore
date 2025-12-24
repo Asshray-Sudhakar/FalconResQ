@@ -1,0 +1,180 @@
+# ==================== ENVIRONMENT VARIABLES ====================
+# CRITICAL: Never commit API keys or sensitive data
+.env
+.env.local
+.env.production
+
+# ==================== PYTHON ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==================== DATA FILES ====================
+# Backup and log files (sensitive victim data)
+data/
+*.json
+*.csv
+!.gitkeep
+
+# Keep data directory structure but ignore contents
+# If you want to keep the data folder in git, create this:
+# data/.gitkeep
+
+# ==================== STREAMLIT ====================
+# Streamlit cache
+.streamlit/
+*.streamlit
+
+# ==================== IDE / EDITORS ====================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ==================== OPERATING SYSTEM ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==================== LOGS ====================
+*.log
+logs/
+*.log.*
+
+# ==================== TEMPORARY FILES ====================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ==================== BACKUP FILES ====================
+*.bak
+*.backup
+*.old
+
+# ==================== DOCUMENTATION ====================
+# Ignore generated documentation
+docs/_build/
+site/
+
+# ==================== SECURITY ====================
+# Never commit these
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+credentials/
+
+# ==================== PROJECT SPECIFIC ====================
+# Victim data backups
+victims_backup.json
+rescue_log.csv
+operation_*.csv
+
+# Serial port test files
+test_data/
+mock_data/
+
+# Screenshots and exports
+exports/
+screenshots/
+*.png
+*.jpg
+*.jpeg
+!logo.png
+
+# ==================== DEPENDENCIES ====================
+# Don't commit installed packages
+site-packages/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==================== MISCELLANEOUS ====================
+# Ignore all hidden files except specific ones
+.*
+!.gitignore
+!.env.example
+!.gitkeep
+
+# Ignore package lock files (optional, depends on workflow)
+# Pipfile.lock
+# poetry.lock
