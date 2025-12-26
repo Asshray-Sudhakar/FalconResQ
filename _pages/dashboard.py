@@ -154,7 +154,8 @@ def render_victim_table_with_rescue(data_manager):
                 # Handle state change
                 if new_state and not is_currently_rescued:
                     # Mark as rescued
-                    data_manager.mark_rescued(victim_id, "Dashboard Action")
+                    operator_name = st.session_state.get('operator_name', 'Unknown Operator')
+                    data_manager.mark_rescued(victim_id, operator_name)
                     st.rerun()
                 elif not new_state and is_currently_rescued:
                     # Undo rescue
