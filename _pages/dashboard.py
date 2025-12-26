@@ -7,62 +7,45 @@ import streamlit as st
 from streamlit_folium import st_folium
 import pandas as pd
 from datetime import datetime
+import time
 
 from modules import MapManager, Analytics
 from utils.helpers import calculate_priority, format_time_ago, get_signal_color
 import config
 
-# ===== REAL-TIME UPDATE CHECK - MUST BE AT TOP =====
-# Check if we need to rerun due to new packet
+# ===== REAL-TIME UPDATE CHECK =====
 if st.session_state.get('force_rerun', False):
     st.session_state.force_rerun = False
     st.rerun()
 
-
-def render_dashboard():
-    """Render the main dashboard page"""
-    
-    # Get instances from session state
-    data_manager = st.session_state.data_manager
-    map_manager = MapManager()
-    analytics = Analytics(data_manager)
-    
-    # Page header
-    st.title("FalconResQ Dashboard")
-    st.title("Active Rescue Operations")
-    st.markdown("Real-time victim tracking and rescue coordination")
-    
-    # Top metrics bar (always show)
-    render_metrics_bar(data_manager)
-    
-    st.divider()
-    
-    # Main content: Map and Management Panel
-    render_main_content(data_manager, map_manager, analytics)
-
-
 def render_metrics_bar(data_manager):
-    """Render top metrics dashboard"""
+    """
+    Render top metrics dashboard with live data from the DataManager.
+    Shows Total, Stranded, En-Route, Rescued, and Success Rate.
+    """
     
+    # 1. Fetch the latest stats from your data manager
     stats = data_manager.get_statistics()
     
+    # 2. Create 5 columns for a professional monitoring look
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.metric(
             label="Total Detected",
             value=stats['total'],
-            help="Total victims detected since operation start"
+            help="Total unique victim IDs detected by the ground station"
         )
     
     with col2:
-        delta = -stats['stranded'] if stats['stranded'] > 0 else None
+        # Show a negative delta if people are still stranded (priority to clear this)
+        stranded_val = stats['stranded']
         st.metric(
             label="Stranded",
-            value=stats['stranded'],
-            delta=delta,
-            delta_color="normal",
-            help="Victims awaiting rescue"
+            value=stranded_val,
+            delta=-stranded_val,
+            delta_color="normal", 
+            help="Victims currently awaiting rescue"
         )
     
     with col3:
@@ -73,22 +56,29 @@ def render_metrics_bar(data_manager):
         )
     
     with col4:
-        delta = f"+{stats['rescued']}" if stats['rescued'] > 0 else None
+        # Show a positive green delta for successful rescues
+        rescued_count = stats['rescued']
         st.metric(
             label="Rescued",
-            value=stats['rescued'],
-            delta=delta,
+            value=rescued_count,
+            delta=f"+{rescued_count}" if rescued_count > 0 else None,
             delta_color="normal",
-            help="Successfully rescued victims"
+            help="Victims successfully reached and moved to safety"
         )
     
     with col5:
+        # Calculate success percentage
         rescue_pct = stats['rescued_pct']
         st.metric(
             label="Success Rate",
             value=f"{rescue_pct:.1f}%",
-            help="Percentage of victims rescued"
+            help="Overall operation efficiency (Rescued / Total)"
         )
+
+    # Optional: Add a progress bar for visual impact
+    if stats['total'] > 0:
+        progress_val = stats['rescued'] / stats['total']
+        st.progress(progress_val, text=f"Mission Progress: {int(progress_val*100)}%")
 
 
 def render_victim_table_with_rescue(data_manager):
@@ -194,27 +184,39 @@ def render_victim_table_with_rescue(data_manager):
         st.info("No victim data available. Waiting for data reception...")
 
 
+def render_dashboard():
+    """Render the main dashboard page"""
+    
+    # Get instances
+    data_manager = st.session_state.data_manager
+    map_manager = MapManager()
+    analytics = Analytics(data_manager)
+    
+    st.title("FalconResQ Dashboard")
+    st.markdown("### Active Rescue Operations")
+    
+    # Top metrics bar
+    render_metrics_bar(data_manager)
+    st.divider()
+    
+    # Main content
+    render_main_content(data_manager, map_manager, analytics)
+
+
 def render_main_content(data_manager, map_manager, analytics):
-    """Render main dashboard content"""
+    """Render main dashboard content with synchronized Map"""
     
-    # Create two columns: Map (larger) and Management Panel (smaller)
-    # For now, show map full width to debug data reception
-    st.markdown("")  # Spacing
-    
-    # Render data preview table with rescue checkbox
+    # 1. Live Data Table (Top)
     render_victim_table_with_rescue(data_manager)
     
     st.divider()
     
+    # 2. Map Section (Bottom)
     render_map_section(data_manager, map_manager)
-    
-    # TODO: Re-enable management panel after fixing key conflicts
-    # with panel_col:
-    #     render_management_panel(data_manager, analytics)
 
 
 def render_map_section(data_manager, map_manager):
-    """Render the map section"""
+    """Render the map with Rescue Station synced to Session State"""
     
     st.subheader("Live Victim Map")
     
@@ -222,289 +224,44 @@ def render_map_section(data_manager, map_manager):
     ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
     
     with ctrl_col1:
-        show_rescued = st.checkbox(
-            "Show Rescued",
-            value=st.session_state.show_rescued,
-            help="Display rescued victims on map",
-            key="map_show_rescued_v2"
-        )
+        show_rescued = st.checkbox("Show Rescued", value=st.session_state.get('show_rescued', True), key="map_show_rescued_v2")
         st.session_state.show_rescued = show_rescued
     
     with ctrl_col2:
-        show_priority = st.checkbox(
-            "Priority Only",
-            value=st.session_state.show_priority_only,
-            help="Show only high-priority victims",
-            key="map_show_priority_v2"
-        )
+        show_priority = st.checkbox("Priority Only", value=st.session_state.get('show_priority_only', False), key="map_show_priority_v2")
         st.session_state.show_priority_only = show_priority
     
     with ctrl_col3:
-        show_heatmap = st.checkbox(
-            "Density Heatmap",
-            value=st.session_state.show_heatmap,
-            help="Show victim density overlay",
-            key="map_show_heatmap_v2"
-        )
+        show_heatmap = st.checkbox("Density Heatmap", value=st.session_state.get('show_heatmap', False), key="map_show_heatmap_v2")
         st.session_state.show_heatmap = show_heatmap
     
-    # Get victims
+    # SYNC RESCUE STATION LOCATION
+    # We pull the lat/lon that was detected in the Settings page
+    rescue_centre = [
+        float(st.session_state.get('rescue_centre_lat', 13.022)),
+        float(st.session_state.get('rescue_centre_lon', 77.587))
+    ]
+
     victims = data_manager.get_all_victims()
     
     if victims:
-        # Create map with rescue station at user's detected location
-        rescue_centre = [
-            float(st.session_state.get('rescue_centre_lat', 13.022)),
-            float(st.session_state.get('rescue_centre_lon', 77.587))
-        ]
-
+        # Generate the map using MapManager
         victim_map = map_manager.create_victim_map(
             victims=victims,
             center=rescue_centre,
             show_rescued=show_rescued,
             show_priority_only=show_priority,
             show_heatmap=show_heatmap,
-            rssi_strong_threshold=st.session_state.rssi_strong_threshold,
-            rssi_weak_threshold=st.session_state.rssi_weak_threshold,
-            time_critical_threshold=st.session_state.time_critical_threshold
+            rssi_strong_threshold=st.session_state.get('rssi_strong_threshold', config.RSSI_STRONG_THRESHOLD),
+            rssi_weak_threshold=st.session_state.get('rssi_weak_threshold', config.RSSI_WEAK_THRESHOLD),
+            time_critical_threshold=st.session_state.get('time_critical_threshold', config.TIME_CRITICAL_THRESHOLD)
         )
         
-        # Display map
+        # Display map - Note: returned_objects=[] prevents unnecessary refreshes
         st_folium(victim_map, width=None, height=550, returned_objects=[])
-        
-        # Map statistics
-        visible_count = len(victims)
-        if show_priority:
-            priority_victims = data_manager.get_priority_victims(
-                rssi_strong_threshold=st.session_state.rssi_strong_threshold,
-                rssi_weak_threshold=st.session_state.rssi_weak_threshold,
-                time_critical_threshold=st.session_state.time_critical_threshold
-            )
-            visible_count = len(priority_victims)
-        
-        st.caption(f"Displaying {visible_count} victim(s) on map")
-        
+        st.caption(f"Rescue Station synced to: {rescue_centre[0]:.6f}, {rescue_centre[1]:.6f}")
     else:
-        # Empty state
         st.info("Waiting for victim signals... Map will appear when data is received.")
-        st.markdown("**Status:** Monitoring COM port for incoming data packets")
-
-
-def render_management_panel(data_manager, analytics):
-    """Render victim management panel"""
-    
-    st.subheader("Victim Management")
-    
-    # Tab navigation
-    tab1, tab2, tab3 = st.tabs(["All Victims", "Priority Cases", "Recently Updated"])
-    
-    with tab1:
-        render_victim_list(data_manager, filter_type="all")
-    
-    with tab2:
-        render_victim_list(data_manager, filter_type="priority")
-    
-    with tab3:
-        render_victim_list(data_manager, filter_type="recent")
-
-
-def render_victim_list(data_manager, filter_type="all"):
-    """Render list of victims with actions"""
-    
-    victims = data_manager.get_all_victims()
-    
-    if not victims:
-        st.info("No victims to display")
-        return
-    
-    # Filter victims based on type
-    if filter_type == "priority":
-        victims = data_manager.get_priority_victims(
-            rssi_strong_threshold=st.session_state.rssi_strong_threshold,
-            rssi_weak_threshold=st.session_state.rssi_weak_threshold,
-            time_critical_threshold=st.session_state.time_critical_threshold
-        )
-        if not victims:
-            st.info("No high-priority victims currently")
-            return
-    
-    elif filter_type == "recent":
-        # Sort by last update (most recent first)
-        victims = dict(sorted(
-            victims.items(),
-            key=lambda x: x[1].get('LAST_UPDATE', ''),
-            reverse=True
-        ))
-        # Take only top 10 most recent
-        victims = dict(list(victims.items())[:10])
-    
-    # Status filter for "all" tab
-    if filter_type == "all":
-        status_filter = st.selectbox(
-            "Filter by Status",
-            ["All", "Stranded", "En-Route", "Rescued"],
-            label_visibility="collapsed"
-        )
-        
-        if status_filter != "All":
-            status_map = {
-                "Stranded": config.STATUS_STRANDED,
-                "En-Route": config.STATUS_EN_ROUTE,
-                "Rescued": config.STATUS_RESCUED
-            }
-            victims = {
-                k: v for k, v in victims.items()
-                if v['STATUS'] == status_map[status_filter]
-            }
-    
-    # Display victim cards
-    st.caption(f"Showing {len(victims)} victim(s)")
-    
-    # Scrollable container
-    container = st.container(height=450)
-    
-    with container:
-        for vid, victim in victims.items():
-            render_victim_card(vid, victim, data_manager)
-
-
-def render_victim_card(victim_id, victim, data_manager):
-    """Render individual victim card with actions"""
-    
-    priority, priority_label = calculate_priority(victim)
-    signal_label, signal_color = get_signal_color(victim['RSSI'])
-    status = victim['STATUS']
-    
-    # Status color
-    status_color = config.STATUS_COLORS[status]
-    
-    # Card container
-    with st.expander(
-        f"ID: {victim_id} | {status}",
-        expanded=False
-    ):
-        # Header with priority badge
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.markdown(f"**Status:** `{status}`")
-        
-        with col2:
-            if priority == "HIGH":
-                st.markdown(
-                    f'<span style="background-color: #dc3545; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">HIGH</span>',
-                    unsafe_allow_html=True
-                )
-            elif priority == "MEDIUM":
-                st.markdown(
-                    f'<span style="background-color: #ffc107; color: black; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">MED</span>',
-                    unsafe_allow_html=True
-                )
-        
-        # Victim information
-        st.markdown(f"**Location:** {victim['LAT']:.6f}, {victim['LON']:.6f}")
-        
-        st.markdown(
-            f"**Signal:** <span style='color: {signal_color}; font-weight: bold;'>{victim['RSSI']} dBm</span> ({signal_label})",
-            unsafe_allow_html=True
-        )
-        
-        st.markdown(f"**Last Update:** {format_time_ago(victim['LAST_UPDATE'])}")
-        st.markdown(f"**Packets Received:** {victim.get('UPDATE_COUNT', 0)}")
-        
-        # Action buttons based on status
-        st.markdown("---")
-        
-        if status == config.STATUS_STRANDED:
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                if st.button(
-                    "Dispatch Team",
-                    key=f"enroute_{victim_id}",
-                    use_container_width=True
-                ):
-                    data_manager.mark_enroute(victim_id)
-                    st.success(f"Team dispatched for ID {victim_id}")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            with col_b:
-                if st.button(
-                    "Mark Rescued",
-                    key=f"rescued_{victim_id}",
-                    use_container_width=True,
-                    type="primary"
-                ):
-                    # Use session state operator name
-                    operator = st.session_state.operator_name
-                    data_manager.mark_rescued(victim_id, operator, "")
-                    st.success(f"Victim {victim_id} marked as rescued!")
-                    time.sleep(0.5)
-                    st.rerun()
-        
-        elif status == config.STATUS_EN_ROUTE:
-            if st.button(
-                "Confirm Rescue",
-                key=f"rescued_{victim_id}",
-                use_container_width=True,
-                type="primary"
-            ):
-                operator = st.session_state.operator_name
-                data_manager.mark_rescued(victim_id, operator, "")
-                st.success(f"Victim {victim_id} rescued!")
-                time.sleep(0.5)
-                st.rerun()
-        
-        elif status == config.STATUS_RESCUED:
-            rescued_by = victim.get('RESCUED_BY', 'Unknown')
-            rescued_time = format_time_ago(victim.get('RESCUED_TIME', ''))
-            
-            st.success(f"Rescued by {rescued_by}")
-            st.caption(f"Rescue time: {rescued_time}")
-            
-            if victim.get('NOTES'):
-                st.info(f"Notes: {victim['NOTES']}")
-
-
-def render_quick_stats(analytics):
-    """Render quick statistics panel"""
-    
-    st.markdown("### Quick Statistics")
-    
-    # Rescue rate
-    rescue_rate = analytics.calculate_rescue_rate()
-    
-    if rescue_rate['total_rescued'] > 0:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric(
-                "Rescue Rate",
-                f"{rescue_rate['rescues_per_hour']:.1f}/hr"
-            )
-        
-        with col2:
-            st.metric(
-                "Avg Time",
-                f"{rescue_rate['average_rescue_time_minutes']:.1f} min"
-            )
-    
-    # Signal distribution
-    signal_dist = analytics.analyze_signal_trends()
-    
-    st.markdown("**Signal Distribution**")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Strong", signal_dist['strong_signals'])
-    
-    with col2:
-        st.metric("Medium", signal_dist['medium_signals'])
-    
-    with col3:
-        st.metric("Weak", signal_dist['weak_signals'])
 
 
 # Run the dashboard

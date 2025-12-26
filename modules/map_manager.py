@@ -566,7 +566,7 @@ class MapManager:
                 "<div style='font-family: Arial; font-size: 13px; color: black;'>"
                 "<h4 style='color: #0066cc; margin: 0 0 5px 0;'>🏠 Rescue Station</h4>"
                 "<p style='margin: 0;'><strong>Coordination Center</strong></p>"
-                "<p style='margin: 5px 0 0 0; font-size: 11px; color: #666;'>Your Location</p>"
+                f"<p style='margin: 5px 0 0 0; font-size: 11px; color: #666;'>Your Location: {center[0]:.6f}, {center[1]:.6f}</p>"
                 "</div>",
                 max_width=250
             ),

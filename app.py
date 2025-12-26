@@ -27,7 +27,7 @@ st.set_page_config(
 FalconResQ: Disaster Management System using Drone Technology
 
 By: Asshray Sudhakara ECE'27 
-\n Aviation Coordinator & Student of EvRe Domain @ MARVEL, UVCE
+\n Student of EvRe Domain & Aviation Coordinator @ MARVEL, UVCE
         """
     }
 )

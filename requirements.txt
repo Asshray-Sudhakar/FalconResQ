@@ -26,3 +26,6 @@ python-dateutil>=2.8.0
 
 # Optional: Auto-refresh functionality
 streamlit-autorefresh>=1.0.1
+
+# Optional: JavaScript evaluation in Streamlit for MAPS
+streamlit-js-eval>=0.1.7

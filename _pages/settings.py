@@ -10,6 +10,7 @@ import os
 import streamlit.components.v1 as components
 
 import config
+from streamlit_js_eval import get_geolocation
 
 
 def render_settings():
@@ -197,174 +198,108 @@ def render_serial_settings():
 
 
 def render_map_settings():
-    """Render map configuration settings"""
+    """Render map configuration settings with auto-update capability"""
     
     st.subheader("Map Configuration")
     st.markdown("Configure default map settings and visualization options")
     
-    # Get user's location button
-    st.markdown("#### Detect Your Location")
-    st.info("Click below to detect your location and set it as the rescue station location")
+    # 1. THE GEOLOCATION BRIDGE
+    # This must be called at the top level. It returns None until the browser provides data.
+    loc = get_geolocation()
     
+    st.markdown("#### Detect Your Location")
+    st.info("Click 'Detect' to fetch your current GPS coordinates. Once coordinates appear in the green box, the input fields will update.")
+
+    # 2. DETECTION LOGIC
     if st.button("📍 Detect My Location", type="primary", use_container_width=True):
-        location_component = components.html("""
-            <script>
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
-                        
-                        // Save to localStorage
-                        localStorage.setItem('user_lat', lat);
-                        localStorage.setItem('user_lon', lon);
-                        
-                        // Display success message
-                        const result = document.createElement('div');
-                        result.innerHTML = '<div style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">' +
-                            '<strong>✓ Location Detected & Saved!</strong><br>' +
-                            'Latitude: ' + lat.toFixed(6) + '<br>' +
-                            'Longitude: ' + lon.toFixed(6) + '<br>' +
-                            '<small style="margin-top: 10px; display: block;">Location is now active as your rescue station.</small>' +
-                            '</div>';
-                        document.body.appendChild(result);
-                    },
-                    function(error) {
-                        const result = document.createElement('div');
-                        result.innerHTML = '<div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">' +
-                            '<strong>✗ Error:</strong> ' + error.message +
-                            '</div>';
-                        document.body.appendChild(result);
-                    }
-                );
-            } else {
-                const result = document.createElement('div');
-                result.innerHTML = '<div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">' +
-                    '<strong>✗ Error:</strong> Geolocation not supported by your browser' +
-                    '</div>';
-                document.body.appendChild(result);
-            }
-            </script>
-        """, height=120)
+        if loc:
+            # Extract coordinates from the JS bridge
+            new_lat = float(loc['coords']['latitude'])
+            new_lon = float(loc['coords']['longitude'])
+            
+            # Update the source of truth in session state
+            st.session_state.rescue_centre_lat = new_lat
+            st.session_state.rescue_centre_lon = new_lon
+            st.session_state.location_just_detected = True
+            
+            st.rerun() 
+            # Rerun is vital to push the values into the number_input widgets below
+        else:
+            st.warning("Requesting browser location... Please wait 2 seconds and click 'Detect' again. Ensure you allow location access in your browser popup.")
+
+    if st.session_state.get('location_just_detected', False):
+        st.success(f"✓ Location Detected: {st.session_state.rescue_centre_lat:.6f}, {st.session_state.rescue_centre_lon:.6f}")
     
     st.divider()
     
-    # Rescue Station Location (from geolocation)
-    st.markdown("#### Rescue Station Location (Auto-Detected)")
-    st.caption("This location is used as the center point for coverage calculations")
+    # 3. MANUAL OVERRIDE / INPUT BOXES
+    st.markdown("#### Rescue Station Location")
+    st.caption("These coordinates are used as the center point for the rescue mission.")
     
-    # Try to read from browser's geolocation
-    geolocation_reader = """
-    <script>
-    (function() {
-        try {
-            const userLat = localStorage.getItem('user_lat');
-            const userLon = localStorage.getItem('user_lon');
-            if (userLat && userLon) {
-                document.getElementById('geo_display').innerHTML = 
-                    '<div style="padding: 10px; background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 4px; color: #004085;">' +
-                    '<strong>Current Location:</strong><br>' +
-                    'Latitude: ' + parseFloat(userLat).toFixed(6) + '<br>' +
-                    'Longitude: ' + parseFloat(userLon).toFixed(6) +
-                    '</div>';
-            }
-        } catch(e) {}
-    })();
-    </script>
-    """
-    
-    components.html(geolocation_reader, height=0)
-    st.markdown('<div id="geo_display"></div>', unsafe_allow_html=True)
-    
-    # Check if location was just detected and auto-fill the fields
-    auto_fill_script = """
-    <script>
-    (function() {
-        const userLat = localStorage.getItem('user_lat');
-        const userLon = localStorage.getItem('user_lon');
-        if (userLat && userLon) {
-            window.streamlitDetectedLat = parseFloat(userLat);
-            window.streamlitDetectedLon = parseFloat(userLon);
-        }
-    })();
-    </script>
-    """
-    components.html(auto_fill_script, height=0)
-    
-    # Manual rescue station coordinates
-    st.markdown("**Or set manually:**")
     col1, col2 = st.columns(2)
     
-    # Check if we have detected coordinates from localStorage
-    detected_lat = st.session_state.get('_detected_lat')
-    detected_lon = st.session_state.get('_detected_lon')
-    
-    # Get current values
-    current_lat = st.session_state.get('rescue_centre_lat', 13.022)
-    current_lon = st.session_state.get('rescue_centre_lon', 77.587)
-    
+    # Ensure variables exist in session state so number_input has a starting point
+    if 'rescue_centre_lat' not in st.session_state:
+        st.session_state.rescue_centre_lat = 13.022000
+    if 'rescue_centre_lon' not in st.session_state:
+        st.session_state.rescue_centre_lon = 77.587000
+
     with col1:
-        rescue_lat = st.number_input(
+        # We bind the 'value' to the session_state we just updated
+        res_lat = st.number_input(
             "Rescue Station Latitude",
-            value=current_lat,
+            value=st.session_state.rescue_centre_lat,
             format="%.6f",
             step=0.000001,
-            help="Latitude in decimal degrees"
+            key="lat_box_input"
         )
-        if rescue_lat != current_lat:
-            st.session_state.rescue_centre_lat = rescue_lat
-    
+        st.session_state.rescue_centre_lat = res_lat
+
     with col2:
-        rescue_lon = st.number_input(
+        res_lon = st.number_input(
             "Rescue Station Longitude",
-            value=current_lon,
+            value=st.session_state.rescue_centre_lon,
             format="%.6f",
             step=0.000001,
-            help="Longitude in decimal degrees"
+            key="lon_box_input"
         )
-        if rescue_lon != current_lon:
-            st.session_state.rescue_centre_lon = rescue_lon
-    
-    # Display current values
-    if st.session_state.get('rescue_centre_lat') and st.session_state.get('rescue_centre_lon'):
-        st.info(f"✓ Active Rescue Station: {st.session_state.rescue_centre_lat:.6f}, {st.session_state.rescue_centre_lon:.6f}")
+        st.session_state.rescue_centre_lon = res_lon
+
+    # Status indicator
+    st.info(f"📡 Current Active Station: `{st.session_state.rescue_centre_lat:.6f}, {st.session_state.rescue_centre_lon:.6f}`")
     
     st.divider()
     
-    # Google Maps API status
+    # 4. API CONFIGURATION
     st.markdown("#### API Configuration")
-    
     if config.validate_api_key():
         st.success("Google Maps API key is configured")
         st.caption(f"API Key: {config.GOOGLE_MAPS_API_KEY[:10]}...{config.GOOGLE_MAPS_API_KEY[-4:]}")
     else:
         st.error("Google Maps API key not configured")
         st.warning("Please add GOOGLE_MAPS_API_KEY to your .env file")
-        st.code("GOOGLE_MAPS_API_KEY=your_api_key_here", language="bash")
     
-
-    
-    # Map style preferences
     st.divider()
+
+    # 5. MAP DISPLAY PREFERENCES
     st.markdown("#### Map Display Preferences")
     
-    col1, col2 = st.columns(2)
+    col_p1, col_p2 = st.columns(2)
     
-    with col1:
-        show_rescued = st.checkbox(
+    with col_p1:
+        # Simplified: Use the checkbox to update session state directly
+        st.session_state.show_rescued = st.checkbox(
             "Show rescued victims by default",
-            value=st.session_state.show_rescued,
+            value=st.session_state.get('show_rescued', True),
             help="Display rescued victims on map by default"
         )
-        st.session_state.show_rescued = show_rescued
     
-    with col2:
-        show_heatmap = st.checkbox(
+    with col_p2:
+        st.session_state.show_heatmap = st.checkbox(
             "Show density heatmap by default",
-            value=st.session_state.show_heatmap,
+            value=st.session_state.get('show_heatmap', False),
             help="Display victim density heatmap by default"
         )
-        st.session_state.show_heatmap = show_heatmap
 
 
 def render_operator_settings():

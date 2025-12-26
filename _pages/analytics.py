@@ -127,7 +127,10 @@ def render_geographic_overview(data_manager, map_manager, analytics):
         # Create comprehensive map with rescue station at center
         overview_map = map_manager.create_victim_map(
             victims=victims,
-            center=st.session_state.map_center,
+            center=[
+                st.session_state.get('rescue_centre_lat', 13.022),
+                st.session_state.get('rescue_centre_lon', 77.587)
+            ],
             show_rescued=True,
             show_heatmap=True,
             show_sectors=True,
