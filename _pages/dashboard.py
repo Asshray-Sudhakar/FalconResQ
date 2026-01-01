@@ -222,7 +222,7 @@ def render_map_section(data_manager, map_manager):
     st.subheader("Live Victim Map")
     
     # Map controls
-    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
     
     with ctrl_col1:
         show_rescued = st.checkbox("Show Rescued", value=st.session_state.get('show_rescued', True), key="map_show_rescued_v2")
@@ -235,6 +235,11 @@ def render_map_section(data_manager, map_manager):
     with ctrl_col3:
         show_heatmap = st.checkbox("Density Heatmap", value=st.session_state.get('show_heatmap', False), key="map_show_heatmap_v2")
         st.session_state.show_heatmap = show_heatmap
+        
+    with ctrl_col4:  # ← NEW COLUMN ADDED
+        if st.button("🔄 Refresh Map", key="manual_refresh_map"):
+            st.rerun()
+
     
     # SYNC RESCUE STATION LOCATION
     # We pull the lat/lon that was detected in the Settings page
