@@ -1,0 +1,16 @@
+python -m streamlit run app.py
+
+--------------------------------------
+
+git remote add origin "url"
+git push -u origin main
+
+
+-------------------------------------
+
+git add .
+git commit -m "some commit message"
+git push -u origin main
+
+-------------------------------------
+
