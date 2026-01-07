@@ -194,6 +194,11 @@ def render_dashboard():
     analytics = Analytics(data_manager)
     
     st.title("FalconResQ Dashboard")
+    st.markdown(
+    "[📘 Ground Station Operator Manual (PDF)]"
+    "(https://github.com/Asshray-Sudhakar/FalconResQ-Reports-User-Manuals/blob/main/"
+    "FalconResQ%20Gnd%20Station%20Operator%20Manual.pdf)"
+)
     st.markdown("### Active Rescue Operations")
     
     # Top metrics bar
